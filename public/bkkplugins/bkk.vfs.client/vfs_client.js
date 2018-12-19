@@ -28,14 +28,6 @@ define(function(require, exports, module) {
 
         function load() {
             // initialize mock fsData
-            findNode("/README.md", true, [
-                "# Welcome to Cloud9 offline demo!",
-                "",
-                "This is a demo of Cloud9 ui, with a mock vfs server working with localStorage",
-                "Some features that need a real server have been disabled",
-                "So be sure to try the real thing at https://c9.io!"
-            ].join("\n"));
-            findNode("~", true);
             if (options.storage != false) {
                 // Try loading data from localStorage
                 try {
@@ -176,6 +168,7 @@ define(function(require, exports, module) {
             get region() { return ""; },
 
             rest: function(path, options, callback) {
+                console.log( "*** rest: " + path );
                 if (options.method == "PUT") {
                     if (typeof options.body == "object") {
                         return readBlob(options.body, function(e, value) {
@@ -199,6 +192,7 @@ define(function(require, exports, module) {
             },
             download: function(path, filename, isfile) {
                 // TODO use jszip for folders
+                console.log( "*** download: " + path );
                 if (Array.isArray(path) && path.length > 1) {
                     return path.map(function(x) {
                         plugin.download(x);
@@ -222,108 +216,129 @@ define(function(require, exports, module) {
 
             // File management
             resolve: noop,
+
             stat: function(path, options, callback) {
-                var data = findNode(path);
-                var name = path.split("/").pop();
                 setTimeout(function() {
-                    if (data == null)
+                    //BK
+                    bkkfeathers.fcNode( path, false, "", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "*** stat: fcNode fail: " + path );
                         return callback(ENOENT());
-                    var value = fileConets(data);
-                    var isFileNode = value != null;
-                    var stat = {
-                        name: name,
-                        size: isFileNode ? value.length : 1,
-                        mtime: data.t || 0,
-                        ctime: data.ct || data.t || 0,
-                        mime: isFileNode ? "" : "folder"
-                    };
-                    callback(null, stat);
-                }, 20);
-            },
-            readfile: function(path, options, callback) {
-                var data = findNode(path);
-                setTimeout(function() {
-                    var value = fileConets(data);
-                    if (value == null)
-                        return callback(ENOENT());
-                    sendStream(value, callback);
-                }, 20);
-            },
-            readdir: function(path, options, callback) {
-                var data = findNode(path);
-                setTimeout(function() {
-                    if (!data || isFile(data))
-                        return callback(ENOENT());
-                    var stats = Object.keys(data).map(function(n) {
-                        var value = fileConets(data[n]);
-                        var isFile = value != null;
-                        return {
-                            name: n.substr(1),
-                            size: isFile ? value.length : 1,
-                            mtime: data[n].t || 0,
-                            ctime: data[n].ct || data[n].t,
-                            mime: isFile ? "" : "folder"
-                        };
+                      }
+                      callback(null, stat);
                     });
-                    sendStream(stats, callback);
+                    //BK
+                }, 20);
+            },
+
+            readfile: function(path, options, callback) {
+                setTimeout(function() {
+                    //BK
+                    bkkfeathers.fcNode( path, false, "", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "*** readfile: fcNode fail: " + path );
+                        return callback(ENOENT());
+                      }
+                      bkkfeathers.readFile( stat._id, function(value) {
+                        sendStream(value, callback);
+                      });
+                    });
+                    //BK
+                }, 20);
+            },
+
+            readdir: function(path, options, callback) {
+                setTimeout(function() {
+                    //BK
+                    bkkfeathers.fcNode( path, false, "", function(stat) {
+                      if ( stat == null || stat.mime != "folder") {
+                        console.log( "*** readdir: fcNode fail: " + path );
+                        return callback(ENOENT());
+                      }
+                      bkkfeathers.readDir( stat._id, function(stats) {
+                        sendStream(stats, callback);
+                      });
+                    });
+                    //BK
                 });
             },
+
             mkfile: function(path, options, callback) {
-                bkkfeathers.test( path );
-                var parts = path.split("/");
-                var name = "!" + parts.pop();
-                var parent = findNode(parts.join("/"), true);
+                console.log( "*** mkfile: " + path );
                 var val = "";
+
                 options.stream.on("data", function(e) {
                     if (e) val += e;
                 });
                 options.stream.on("end", function(e) {
                     if (e) val += e;
                     setTimeout(function() {
-                        if (!parent)
+                        //BK
+                        bkkfeathers.fcNode( path, true, "", function(stat) {
+                          if ( stat == null ) {
+                            console.log( "*** mkfile: fcNode fail: " + path );
                             return callback(ENOENT());
-                        if (parent[name] && !isFile(parent[name]))
-                            return callback(new Error("EISDIR"));
-                        parent[name] = { v: val, t: Date.now() };
+                          }
+                          bkkfeathers.writeFile( stat._id, val );
+                        });
+                        //BK
                         watcher.addChange(path);
                         callback(null);
                     });
                 });
             },
+
             mkdir: function(path, options, callback) {
-                var data = findNode(path, true);
                 setTimeout(function() {
-                    if (!data)
+                    //BK
+                    bkkfeathers.fcNode( path, true, "folder", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "mkdir: fcNode fail: " + path );
                         return callback(ENOENT());
+                      }
+                    });
+                    //BK
+
                     watcher.addChange(path);
                     callback();
                 });
             },
             mkdirP: function(path, options, callback) {
-                var data = findNode(path, true);
                 setTimeout(function() {
-                    if (!data)
+                    //BK
+                    bkkfeathers.fcNode( path, true, "folder", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "mkdirP: fcNode fail: " + path );
                         return callback(ENOENT());
+                      }
+                    });
+                    //BK
+
                     watcher.addChange(path);
                     callback();
                 });
             },
             appendfile: noop,
             rmfile: function(path, options, callback) {
-                var parts = path.split("/");
-                var name = "!" + parts.pop();
                 setTimeout(function() {
-                    var parent = findNode(parts.join("/"));
-                    if (!parent || !parent[name])
+                    //BK
+                    bkkfeathers.fcNode( path, false, "", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "*** rmfile: fcNode fail: " + path );
                         return callback(ENOENT());
-                    if (!isFile(parent[name]))
+                      } else if ( stat.mime == "folder" ) {
+                        console.log( "*** rmfile EISDIR: " + path );
                         return callback(new Error("EISDIR"));
-                    delete parent[name];
+                      }
+                      bkkfeathers.rmFile( stat._id );
+                    });
+                    //BK
                     watcher.addChange(path);
                     callback();
                 });
             },
             rmdir: function(path, options, callback) {
+                console.log( "*** rmdir: " + path );
                 var parts = path.split("/");
                 var name = "!" + parts.pop();
                 setTimeout(function() {
@@ -338,6 +353,7 @@ define(function(require, exports, module) {
                 });
             },
             rename: function(to, options, callback) {
+                console.log( "*** reaname: " + path );
                 setTimeout(function() {
                     var from = options.from;
                     var overwrite = options.overwrite;
@@ -360,6 +376,7 @@ define(function(require, exports, module) {
                 });
             },
             copy: function(from, options, callback) {
+                console.log( "*** copy: " + from + ": " + options.to );
                 setTimeout(function() {
                     var to = options.to;
                     var overwrite = options.overwrite;
@@ -387,25 +404,44 @@ define(function(require, exports, module) {
 
             // Save and retrieve Metadata
             metadata: function(path, value, sync, callback) {
-                var parts = ("/.c9/metadata" + path).split("/");
-                var name = "!" + parts.pop();
-                var parent = findNode(parts.join("/"), true);
-                if (sync) {
-                    parent[name] = JSON.stringify(value);
-                    return callback();
-                }
+                console.log( "*** metadata path: " + path );
+                console.log( "*** metadata sync: " + sync );
+
                 setTimeout(function() {
-                    parent[name] = JSON.stringify(value);
+                    //BK
+                    bkkfeathers.fcNode( "/.c9/metadata" + path, true, "", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "metadata: fcNode fail: " + path );
+                      }
+                      bkkfeathers.writeFile( stat._id, JSON.stringify(value) );
+                    });
+                    //BK
                     callback();
                 });
             },
+
             readFileWithMetadata: function(path, options, callback) {
-                var data = findNode(path);
-                var metadata = findNode("/.c9/metadata" + path);
                 var timer = setTimeout(function() {
-                    if (!isFile(data))
+                    //BK
+                    bkkfeathers.fcNode( path, false, "", function(stat) {
+                      if ( stat == null ) {
+                        console.log( "readFileWithMetadata: fcNode fail: " + path );
                         return callback(ENOENT());
-                    callback(null, fileConets(data), fileConets(metadata));
+                      } else {
+                        bkkfeathers.fcNode( "/.c9/metadata" + path, false, "", function(mstat) {
+                          if ( mstat == null ) {
+                            console.log( "readFileWithMetadata: fcNode mstat fail: " + path );
+                            return callback(ENOENT());
+                          }
+                          bkkfeathers.readFile( mstat._id, function(mvalue) {
+                            bkkfeathers.readFile( stat._id, function(value) {
+                              callback(null, value, mvalue);
+                            });
+                          });
+                        });
+                      }
+                    });
+                    //BK
                 });
                 return { abort: function() { clearTimeout(timer); } };
             },
