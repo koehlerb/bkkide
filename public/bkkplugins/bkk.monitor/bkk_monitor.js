@@ -13,9 +13,9 @@ define(function(require, exports, module) {
 
         var foobar = 1;
 
-        function regChangeHandler( aceSession ) {
+        function regChangeHandler( aceSession, c9doc ) {
           aceSession.doc.on( "change", function( delta ) {
-            console.log( "*** A document changed!" );
+            console.log( "*** A document changed: " + c9doc.tab.path );
             console.log( delta );
           }, true );
         }
@@ -26,7 +26,7 @@ define(function(require, exports, module) {
               var doc = e.doc;
               var path = doc.tab.path;
               console.log( "*** initAceSession: " + path );
-              regChangeHandler( doc.getSession().session );
+              regChangeHandler( doc.getSession().session, doc );
               //var otDoc = documents[path];
               //if (otDoc && !otDoc.session)
               //    otDoc.setSession(doc.getSession().session);

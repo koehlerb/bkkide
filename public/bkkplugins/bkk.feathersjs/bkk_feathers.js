@@ -18,10 +18,31 @@ define(function(require, exports, module) {
         const app = feathers();
 
         app.configure(feathers.socketio(socket));
-        //app.configure(feathers.authentication());
+        app.configure(feathers.authentication({
+          storage: window.localStorage
+        }));
+
+        app.authenticate()
+        .then(response => {
+          console.log('Authenticated!', response);
+          return app.passport.verifyJWT(response.accessToken);
+        })
+        .then(payload => {
+          console.log('JWT Payload', payload);
+          return app.service('users').get(payload.userId);
+        })
+        .then(user => {
+          app.set('user', user);
+          console.log('User', app.get('user'));
+        })
+        .catch(function(error){
+          console.error('Error authenticating!', error);
+          window.location = "http://localhost:3030/";
+        });
 
         function load() {
           console.log( "bkk.feathers load");
+          console.log( window.location );
         }
 
         function unload() {

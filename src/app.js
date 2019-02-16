@@ -16,6 +16,19 @@ const services = require('./services');
 const appHooks = require('./app.hooks');
 const channels = require('./channels');
 
+const authentication = require('./authentication');
+
+
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+const RECAPTCHA_API_KEY = process.env.RECAPTCHA_API_KEY;
+
+const CODEPOOL_BASE_URL = process.env.CODEPOOL_BASE_URL ?
+                     process.env.CODEPOOL_BASE_URL :
+                     'http://localhost:4200';
+
+
 const app = express(feathers());
 
 // Load app configuration
@@ -29,6 +42,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(favicon(path.join(app.get('public'), 'favicon.ico')));
 // Host the public folder
 app.use('/', express.static(app.get('public')));
+app.use('/login', express.static(app.get('public')));
+app.use('/signup', express.static(app.get('public')));
+app.use('/about', express.static(app.get('public')));
+app.use('/projects', express.static(app.get('public')));
 
 app.use( '/plugins', express.static(path.join(
   app.get('public'),
@@ -83,6 +100,7 @@ app.configure(socketio());
 
 // Configure other middleware (see `middleware/index.js`)
 app.configure(middleware);
+app.configure(authentication);
 // Set up our services (see `services/index.js`)
 app.configure(services);
 // Set up event channels (see channels.js)
@@ -93,5 +111,10 @@ app.use(express.notFound());
 app.use(express.errorHandler({ logger }));
 
 app.hooks(appHooks);
+
+app.set( 'SGMAIL', sgMail );
+app.set( 'RECAPTCHA_API_KEY', RECAPTCHA_API_KEY );
+app.set( 'CODEPOOL_BASE_URL', CODEPOOL_BASE_URL );
+app.set( 'SENDGRID_SENDER', process.env.SENDGRID_SENDER );
 
 module.exports = app;

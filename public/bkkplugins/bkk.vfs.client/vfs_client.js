@@ -353,7 +353,7 @@ define(function(require, exports, module) {
                 });
             },
             rename: function(to, options, callback) {
-                console.log( "*** reaname: " + path );
+                console.log( "*** reaname: " + options.from +": " + to );
                 setTimeout(function() {
                     var from = options.from;
                     var overwrite = options.overwrite;
